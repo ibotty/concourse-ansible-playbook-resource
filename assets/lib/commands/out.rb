@@ -155,7 +155,7 @@ module Commands
       ap.become_method = params.become_method
       ap.check = params.check
       ap.diff = params.diff
-      ap.env = ENV.to_hash.merge(source.env || {})
+      ap.env = ENV.to_hash.merge(source.env || {}).merge(params.env || {})
       ap.extra_vars = params.vars
       ap.inventory = require_param 'inventory'
       ap.playbook = params.playbook
