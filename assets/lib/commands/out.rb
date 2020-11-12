@@ -54,12 +54,14 @@ module Commands
     end
 
     def configure_ssh!
+      debug "Configuring ssh..."
       key = require_source 'ssh_private_key'
       @ssh_config.create_key_file! SSH_KEY_PATH, key
       @ssh_config.configure!
     end
 
     def configure_git!
+      debug "Configuring git..."
       key = source.git_private_key
       if !key.nil?
         @ssh_config.create_key_file! GIT_KEY_PATH, key
@@ -73,10 +75,11 @@ module Commands
     end
 
     def configure_ansible!
-
       # Sanitize ansible.cfg
       ansible_cfg_path = "ansible.cfg"
       if File.exists? ansible_cfg_path
+        debug "Sanitizing ansible.cfg..."
+
         # Never allow a vault password file that may have come from source control :P
         `sed -i '/vault_password_file[[:space:]]*=/d' #{ansible_cfg_path}`
 
@@ -123,6 +126,9 @@ module Commands
       if !vp.nil?
         vp_path = "/tmp/ansible-playbook-resource-ansible-vault-password"
         File.write vp_path, vp
+
+        debug "Wrote vault password file: #{vp_path}"
+
         vp_path
       end
     end
@@ -143,11 +149,15 @@ module Commands
 
     def run_setup_commands!
       (params.setup_commands || []).each do |setup_command|
+        debug "Running setup command: #{setup_command}"
+
         system setup_command
       end
     end
 
     def run_playbook!
+      debug "Executing ansible-playbook..."
+
       ap = AnsiblePlaybook.new source.debug
 
       ap.become = params.become
@@ -157,6 +167,7 @@ module Commands
       ap.diff = params.diff
       ap.env = ENV.to_hash.merge(source.env || {}).merge(params.env || {})
       ap.extra_vars = params.vars
+      ap.limit = params.limit
       ap.inventory = require_param 'inventory'
       ap.playbook = params.playbook
       ap.private_key = SSH_KEY_PATH
@@ -168,6 +179,10 @@ module Commands
       ap.verbose = source.verbose
 
       ap.execute!
+    end
+
+    def debug(msg)
+      puts(msg) if source.debug
     end
 
     def run!

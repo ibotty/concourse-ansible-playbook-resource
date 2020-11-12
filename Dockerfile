@@ -1,32 +1,26 @@
-FROM ubuntu:bionic as main
+FROM alpine:latest as main
 
 RUN set -eux; \
-    apt-get update -y; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-      git \
-      openssh-client \
-      python3 \
-      python3-apt \
-      python3-pip \
-      rsync \
-      ruby \
-      wget; \
-    apt-get clean all; \
-    rm -rf /var/lib/apt/lists/*; \
-    pip3 install --no-cache-dir \
-      ansible \
-      boto; \
+    apk --update add bash openssh-client ruby git ruby-json python3 py3-pip openssl ca-certificates; \
+    apk --update add --virtual \
+      build-dependencies \
+      build-base \
+      python3-dev \
+      libffi-dev \
+      openssl-dev; \
+    pip3 install --upgrade pip cffi; \
+    pip3 install ansible boto pywinrm; \
+    apk del build-dependencies; \
+    rm -rf /var/cache/apk/*; \
     mkdir -p /etc/ansible; \
     echo -e "[local]\nlocalhost ansible_connection=local" > /etc/ansible/hosts
 
 COPY assets/ /opt/resource/
 
-
 FROM main as testing
 
 RUN set -eux; \
-    gem install \
-      rspec; \
+    gem install rspec; \
     wget -q -O - https://raw.githubusercontent.com/troykinsella/mockleton/master/install.sh | bash; \
     cp /usr/local/bin/mockleton /usr/local/bin/ansible-galaxy; \
     cp /usr/local/bin/mockleton /usr/local/bin/ansible-playbook; \
@@ -34,9 +28,7 @@ RUN set -eux; \
 
 COPY . /resource/
 
-RUN set -eux; \
-    cd /resource; \
-    rspec
-
+WORKDIR /resource
+RUN rspec
 
 FROM main
